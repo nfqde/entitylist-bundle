@@ -247,4 +247,3 @@ public function listAction()
 TODO
 ------------
 + Write tests.
-+ yml mapping.
