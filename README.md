@@ -21,6 +21,7 @@ in the `installation chapter`_ of the Composer documentation.
 ## Step 2: Enable the Bundle
 Then, enable the bundle by adding it to the list of registered bundles
 in the ``app/AppKernel.php`` file of your project:
+
     <?php
     // app/AppKernel.php
 
@@ -42,12 +43,15 @@ in the ``app/AppKernel.php`` file of your project:
 
 ## Step 3: Configure the Bundle (optional step)
 By default bundle tries to get following parameters from request:
-* ```filters``` - filter parameters.
+* ```filters``` - filters parameter.
+* ```search_param_name``` - search parameter (key inside filters ```filters[search]```).
 * ```order_by``` - ordering parameters.
 * ```page``` - page number.
 * ```page_limit``` - items in page.
 
-**There is also defined default items in page ```10```**.
+**There is also defined:**.
+* default items in page ```10```
+* default bundles directory ```%kernel.root_dir%/../src``` for yml driver
 
 You can change default bundle configuration in ``app/config/config.yml``:
 
