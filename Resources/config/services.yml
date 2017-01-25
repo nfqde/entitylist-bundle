@@ -1,0 +1,37 @@
+services:
+
+    # ----------------- Driver ------------------
+
+    nfq.entity_list.mapping.driver.annotation:
+        class: Nfq\Bundle\EntityListBundle\Mapping\Driver\AnnotationDriver
+        arguments:
+            - "@annotations.reader"
+        public: false
+
+    nfq.entity_list.mapping.driver.yml:
+        class: Nfq\Bundle\EntityListBundle\Mapping\Driver\YmlDriver
+        arguments:
+            - "%entity_list.bundles_directory%"
+        public: false
+
+    # ------------ Metadata managers ------------
+
+    nfq.entity_list.mapping.metadata.annotation_manager:
+        class: Nfq\Bundle\EntityListBundle\Mapping\Metadata\ListMetadataManager
+        arguments:
+            - "@nfq.entity_list.mapping.driver.annotation"
+        public: false
+
+    nfq.entity_list.mapping.metadata.yml_manager:
+        class: Nfq\Bundle\EntityListBundle\Mapping\Metadata\ListMetadataManager
+        arguments:
+            - "@nfq.entity_list.mapping.driver.yml"
+        public: false
+
+    # ------------ Handlers factories -----------
+
+    nfq.entity_list.handler.factory:
+        class: Nfq\Bundle\EntityListBundle\Handler\EntityListHandlerFactory
+        arguments:
+            - "@nfq.entity_list.mapping.metadata.annotation_manager"
+            - "%list_handler_config%"
