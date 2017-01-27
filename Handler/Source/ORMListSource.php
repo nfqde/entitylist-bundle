@@ -416,17 +416,22 @@ class ORMListSource extends AbstractListSource
 
         // Reset default order by before applying from request.
         $qb->resetDQLPart('orderBy');
-
         foreach ($orderBy as $orderByData) {
             if (!in_array($orderByData['field'], $this->getSortableFields())) {
                 throw new \InvalidArgumentException(
                     sprintf('Field "%s" is not sortable', $orderByData['field'])
                 );
             }
+            $sortFieldMetadata = $this->listMetadata->getSortFieldsMappings()[$orderByData['field']];
+            $field = $sortFieldMetadata['name'];
+            $derived = $sortFieldMetadata['derived'];
 
-            $field = sprintf('%s.%s', $this->rootEntityAlias, $orderByData['field']);
-            if (strpos($orderByData['field'], '.') !== false) {
-                list($assocField, $sortField) = explode('.', $orderByData['field']);
+            if (!$derived) {
+                $field = sprintf('%s.%s', $this->rootEntityAlias, $field);
+            }
+
+            if (!$derived && strpos($sortFieldMetadata['name'], '.') !== false) {
+                list($assocField, $sortField) = explode('.', $sortFieldMetadata['name']);
                 $this->addJoin($qb, $assocField);
                 $field = sprintf('%s.%s', $assocField, $sortField);
             }

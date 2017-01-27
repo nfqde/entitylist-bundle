@@ -48,6 +48,10 @@ abstract class AbstractDriver implements DriverInterface
                 $fieldData['name'] = $fieldName;
             }
 
+            if (!isset($fieldData['derived'])) {
+                $fieldData['derived'] = false;
+            }
+
             $this->validateFieldData($fieldData);
 
             $sortableFieldsMappings[$fieldName] = $fieldData;
