@@ -84,8 +84,8 @@ abstract class AbstractDriver implements DriverInterface
                 $fieldData['target'] = EntityList::FIELD_TARGET_DIRECT;
             }
 
-            if (!isset($fieldData['filterField'])) {
-                $fieldData['filterField'] = $fieldName;
+            if (!isset($fieldData['name'])) {
+                $fieldData['name'] = $fieldName;
             }
 
             if (!isset($fieldData['title'])) {

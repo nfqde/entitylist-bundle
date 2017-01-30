@@ -286,7 +286,7 @@ class ORMListSource extends AbstractListSource
         if ($filterTarget == EntityList::FIELD_TARGET_RELATION) {
             $joinField = $filterMetadata['joinField'];
             $this->addJoin($qb, $joinField);
-            $fieldName = $filterMetadata['filterField'];
+            $fieldName = $filterMetadata['name'];
         }
 
         return $fieldName;
