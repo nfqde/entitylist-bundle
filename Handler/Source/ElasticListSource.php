@@ -243,7 +243,7 @@ class ElasticListSource extends AbstractListSource
             return;
         }
 
-        $fieldName = $filterMetadata['filterField'];
+        $fieldName = $filterMetadata['name'];
         switch ($operator) {
             case Filter::OPERATOR_EQ:
                 $fieldsFilter->addMust($this->getEqualFilter($value, $fieldName, $filterMetadata));
