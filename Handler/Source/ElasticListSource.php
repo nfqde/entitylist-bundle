@@ -181,7 +181,7 @@ class ElasticListSource extends AbstractListSource
     {
         $filtersData = $request->query->get($this->listHandlerConfig['filters_param_name'], []);
 
-        $fullFilter = new Query\Bool();
+        $fullFilter = new Query\BoolQuery();
         $globalSearchFilter = $this->getGlobalSearchQueries($filtersData);
 
         // Filters.
@@ -330,9 +330,9 @@ class ElasticListSource extends AbstractListSource
     {
         $termFilter = new ElasticFilter\Term([sprintf('%s.raw', $fieldName) => $value]);
         $missingFieldFilter = new ElasticFilter\Missing(sprintf('%s.raw', $fieldName));
-        $mustNot = new ElasticFilter\Bool();
+        $mustNot = new ElasticFilter\BoolFilter();
         $mustNot->addMustNot($termFilter);
-        $missingOrNotEqual = new ElasticFilter\Bool();
+        $missingOrNotEqual = new ElasticFilter\BoolFilter();
         $missingOrNotEqual->addShould([$missingFieldFilter, $mustNot]);
 
         // Missing nested or missing field of nested or field of nested not equal.
@@ -396,7 +396,7 @@ class ElasticListSource extends AbstractListSource
             case 'boolean':
                 if (!$value) {
                     // Null or false.
-                    $filter = new ElasticFilter\Bool();
+                    $filter = new ElasticFilter\BoolFilter();
                     $filter->addShould([new ElasticFilter\Missing(sprintf('%s.raw', $fieldName)), $termFilter]);
 
                     return $filter;
@@ -482,7 +482,7 @@ class ElasticListSource extends AbstractListSource
             $searchQueries[] = $nestedQuery;
         }
 
-        $globalSearchFilter = new Query\Bool();
+        $globalSearchFilter = new Query\BoolFilter();
         $globalSearchFilter->addShould($searchQueries);
 
         return $globalSearchFilter;
