@@ -482,7 +482,7 @@ class ElasticListSource extends AbstractListSource
             $searchQueries[] = $nestedQuery;
         }
 
-        $globalSearchFilter = new Query\BoolFilter();
+        $globalSearchFilter = new Query\BoolQuery();
         $globalSearchFilter->addShould($searchQueries);
 
         return $globalSearchFilter;
