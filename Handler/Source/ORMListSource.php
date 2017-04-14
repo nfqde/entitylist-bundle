@@ -351,21 +351,24 @@ class ORMListSource extends AbstractListSource
         $parameters = [];
         // Start from previous parameters.
         $paramIndex = count($qb->getParameters());
-        $searchValue = (string)$filtersData[self::SEARCH_PARAM_NAME];
+        $searchValueFull = (string)$filtersData[$this->listHandlerConfig['search_param_name']];
         $whereCondition = $qb->expr()->orX();
         foreach ($this->getSearchFieldsMappings() as $fieldName => $fieldData) {
-            $field = sprintf('%s.%s', $this->rootEntityAlias, $fieldName);
-            if (strpos($fieldName, '.') !== false) {
-                list($assocField, $searchField) = explode('.', $fieldName);
-                $this->addJoin($qb, $assocField);
-                $field = sprintf('%s.%s', $assocField, $searchField);
-            }
+            $fieldCondition = $qb->expr()->andX();
+            foreach (explode(self::SEARCH_TERM_SEPARATOR, $searchValueFull) as $searchValue) {
+                $field = sprintf('%s.%s', $this->rootEntityAlias, $fieldName);
+                if (strpos($fieldName, '.') !== false) {
+                    list($assocField, $searchField) = explode('.', $fieldName);
+                    $this->addJoin($qb, $assocField);
+                    $field = sprintf('%s.%s', $assocField, $searchField);
+                }
 
-            $bindIndexPlaceholder = sprintf('?%s', $paramIndex);
-            $whereCondition->add(
-                $qb->expr()->like($field, $bindIndexPlaceholder)
-            );
-            $parameters[$paramIndex] = $this->normalizeValue(Filter::OPERATOR_LIKE, $searchValue);
+                $bindIndexPlaceholder = sprintf('?%s', $paramIndex);
+                $fieldCondition->add($qb->expr()->like($field, $bindIndexPlaceholder));
+                $parameters[$paramIndex] = $this->normalizeValue(Filter::OPERATOR_LIKE, $searchValue);
+                $paramIndex++;
+            }
+            $whereCondition->add($fieldCondition);
         }
 
         $qb->andWhere($whereCondition);

@@ -16,6 +16,7 @@ interface ListSourceInterface
     const PAGE_LIMIT_PARAM_NAME = 'page_limit';
     const DEFAULT_PAGE_LIMIT = 10;
     const ROOT_ENTITY_ALIAS = 'e';
+    const SEARCH_TERM_SEPARATOR = '__AND__';
 
     /**
      * Handles entity list data source.

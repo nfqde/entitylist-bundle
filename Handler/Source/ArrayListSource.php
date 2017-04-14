@@ -109,25 +109,27 @@ class ArrayListSource extends AbstractListSource
             throw new \InvalidArgumentException('This list has not search feature');
         }
 
-        $searchValue = (string)$filtersData[self::SEARCH_PARAM_NAME];
+        $searchValueFull = (string)$filtersData[$this->listHandlerConfig['search_param_name']];
 
         $data = array_filter(
             $data,
-            function ($row) use ($searchValue) {
+            function ($row) use ($searchValueFull) {
                 $match = false;
                 foreach ($this->getSearchFieldsMappings() as $fieldName => $fieldData) {
-                    if (strpos($fieldName, '.') !== false) {
-                        list($assocField, $sortField) = explode('.', $fieldName);
+                    foreach (explode(self::SEARCH_TERM_SEPARATOR, $searchValueFull) as $searchValue) {
+                        if (strpos($fieldName, '.') !== false) {
+                            list($assocField, $sortField) = explode('.', $fieldName);
 
-                        $match = stripos($row[$assocField][$sortField], $searchValue) !== false;
-                        if ($match) {
-                            break;
+                            $match = stripos($row[$assocField][$sortField], $searchValue) !== false;
+                            if ($match) {
+                                break;
+                            }
+
+                            continue;
                         }
 
-                        continue;
+                        $match = stripos($row[$fieldName], $searchValue) !== false;
                     }
-
-                    $match = stripos($row[$fieldName], $searchValue) !== false;
                     if ($match) {
                         break;
                     }

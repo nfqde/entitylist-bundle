@@ -454,6 +454,8 @@ class ElasticListSource extends AbstractListSource
             return null;
         }
 
+        $searchValue = str_replace(self::SEARCH_TERM_SEPARATOR, ' ', $searchValue);
+
         $relationFields = [];
         $directFields = [];
         foreach ($this->getSearchFieldsMappings() as $fieldName => $fieldMapping) {
