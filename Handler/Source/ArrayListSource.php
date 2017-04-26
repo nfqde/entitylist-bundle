@@ -114,28 +114,44 @@ class ArrayListSource extends AbstractListSource
         $data = array_filter(
             $data,
             function ($row) use ($searchValueFull) {
-                $match = false;
-                foreach ($this->getSearchFieldsMappings() as $fieldName => $fieldData) {
-                    foreach (explode(self::SEARCH_TERM_SEPARATOR, $searchValueFull) as $searchValue) {
-                        if (strpos($fieldName, '.') !== false) {
-                            list($assocField, $sortField) = explode('.', $fieldName);
+                $allTermsMatch = true;
+                foreach (explode(self::SEARCH_TERM_SEPARATOR, $searchValueFull) as $searchTerm) {
+                    $fieldMatch = false;
+                    foreach ($this->getSearchFieldsMappings() as $fieldName => $fieldData) {
+                        $searchWords = $parts = preg_split('/\s+/', $searchTerm);
+                        $wordMatch = false;
+                        foreach ($searchWords as $searchWord) {
+                            if (strpos($fieldName, '.') !== false) {
+                                list($assocField, $sortField) = explode('.', $fieldName);
 
-                            $match = stripos($row[$assocField][$sortField], $searchValue) !== false;
-                            if ($match) {
-                                break;
+                                $wordMatch = stripos($row[$assocField][$sortField], $searchWord) !== false;
+                                // At least one word does not match therefore go to next field.
+                                if (!$wordMatch) {
+                                    break;
+                                }
+                                continue;
                             }
 
-                            continue;
+                            $wordMatch = stripos($row[$fieldName], $searchWord) !== false;
+                            if (!$wordMatch) {
+                                break;
+                            }
                         }
 
-                        $match = stripos($row[$fieldName], $searchValue) !== false;
+                        $fieldMatch = $wordMatch;
+                        // At least one field match - go to next term.
+                        if ($fieldMatch) {
+                            break;
+                        }
                     }
-                    if ($match) {
+                    $allTermsMatch = $allTermsMatch && $fieldMatch;
+                    // At least one term does not match.
+                    if (!$allTermsMatch) {
                         break;
                     }
                 }
 
-                return $match;
+                return $allTermsMatch;
             }
         );
     }

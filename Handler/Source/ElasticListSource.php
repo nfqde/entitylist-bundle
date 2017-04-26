@@ -449,45 +449,48 @@ class ElasticListSource extends AbstractListSource
             throw new \InvalidArgumentException('This list has not search feature');
         }
 
-        $searchValue = (string)$filtersData[$this->listHandlerConfig['search_param_name']];
-        if ($searchValue === '' || $searchValue === null) {
+        $searchValueFull = (string)$filtersData[$this->listHandlerConfig['search_param_name']];
+        if ($searchValueFull === '' || $searchValueFull === null) {
             return null;
         }
 
-        $searchValue = str_replace(self::SEARCH_TERM_SEPARATOR, ' ', $searchValue);
+        $termsSearchQuery = new Query\BoolQuery();
+        foreach (explode(self::SEARCH_TERM_SEPARATOR, $searchValueFull) as $searchValue) {
+            $relationFields = [];
+            $directFields = [];
+            foreach ($this->getSearchFieldsMappings() as $fieldName => $fieldMapping) {
+                if ($fieldMapping['target'] == EntityList::FIELD_TARGET_DIRECT) {
+                    $directFields[$fieldName] = $fieldMapping;
+                    continue;
+                }
 
-        $relationFields = [];
-        $directFields = [];
-        foreach ($this->getSearchFieldsMappings() as $fieldName => $fieldMapping) {
-            if ($fieldMapping['target'] == EntityList::FIELD_TARGET_DIRECT) {
-                $directFields[$fieldName] = $fieldMapping;
-                continue;
+                $path = explode('.', $fieldName)[0];
+                $relationFields[$path][$fieldName] = $fieldMapping;
             }
 
-            $path = explode('.', $fieldName)[0];
-            $relationFields[$path][$fieldName] = $fieldMapping;
+            $searchQueries = [];
+            // Direct fields.
+            $multiMatch = $this->createMultiMatchQuery(array_keys($directFields), $searchValue);
+            $searchQueries[] = $multiMatch;
+
+            // Relations (nested) fields.
+            foreach ($relationFields as $path => $fields) {
+                $multiMatch = $this->createMultiMatchQuery(array_keys($fields), $searchValue);
+
+                $nestedQuery = new Query\Nested();
+                $nestedQuery->setPath($path);
+                $nestedQuery->setQuery($multiMatch);
+
+                $searchQueries[] = $nestedQuery;
+            }
+
+            $globalSearchQuery = new Query\BoolQuery();
+            $globalSearchQuery->addShould($searchQueries);
+
+            $termsSearchQuery->addMust($globalSearchQuery);
         }
 
-        $searchQueries = [];
-        // Direct fields.
-        $multiMatch = $this->createMultiMatchQuery(array_keys($directFields), $searchValue);
-        $searchQueries[] = $multiMatch;
-
-        // Relations (nested) fields.
-        foreach ($relationFields as $path => $fields) {
-            $multiMatch = $this->createMultiMatchQuery(array_keys($fields), $searchValue);
-
-            $nestedQuery = new Query\Nested();
-            $nestedQuery->setPath($path);
-            $nestedQuery->setQuery($multiMatch);
-
-            $searchQueries[] = $nestedQuery;
-        }
-
-        $globalSearchFilter = new Query\BoolQuery();
-        $globalSearchFilter->addShould($searchQueries);
-
-        return $globalSearchFilter;
+        return $termsSearchQuery;
     }
 
     /**

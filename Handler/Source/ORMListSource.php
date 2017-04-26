@@ -352,21 +352,26 @@ class ORMListSource extends AbstractListSource
         // Start from previous parameters.
         $paramIndex = count($qb->getParameters());
         $searchValueFull = (string)$filtersData[$this->listHandlerConfig['search_param_name']];
-        $whereCondition = $qb->expr()->orX();
-        foreach ($this->getSearchFieldsMappings() as $fieldName => $fieldData) {
-            $fieldCondition = $qb->expr()->andX();
-            foreach (explode(self::SEARCH_TERM_SEPARATOR, $searchValueFull) as $searchValue) {
-                $field = sprintf('%s.%s', $this->rootEntityAlias, $fieldName);
-                if (strpos($fieldName, '.') !== false) {
-                    list($assocField, $searchField) = explode('.', $fieldName);
-                    $this->addJoin($qb, $assocField);
-                    $field = sprintf('%s.%s', $assocField, $searchField);
-                }
+        $whereCondition = $qb->expr()->andX();
+        foreach (explode(self::SEARCH_TERM_SEPARATOR, $searchValueFull) as $searchValue) {
+            $fieldCondition = $qb->expr()->orX();
+            foreach ($this->getSearchFieldsMappings() as $fieldName => $fieldData) {
+                $searchWords = $parts = preg_split('/\s+/', $searchValue);
+                $searchWordCondition = $qb->expr()->andX();
+                foreach ($searchWords as $searchWord) {
+                    $field = sprintf('%s.%s', $this->rootEntityAlias, $fieldName);
+                    if (strpos($fieldName, '.') !== false) {
+                        list($assocField, $searchField) = explode('.', $fieldName);
+                        $this->addJoin($qb, $assocField);
+                        $field = sprintf('%s.%s', $assocField, $searchField);
+                    }
 
-                $bindIndexPlaceholder = sprintf('?%s', $paramIndex);
-                $fieldCondition->add($qb->expr()->like($field, $bindIndexPlaceholder));
-                $parameters[$paramIndex] = $this->normalizeValue(Filter::OPERATOR_LIKE, $searchValue);
-                $paramIndex++;
+                    $bindIndexPlaceholder = sprintf('?%s', $paramIndex);
+                    $searchWordCondition->add($qb->expr()->like($field, $bindIndexPlaceholder));
+                    $parameters[$paramIndex] = $this->normalizeValue(Filter::OPERATOR_LIKE, $searchWord);
+                    $paramIndex++;
+                }
+                $fieldCondition->add($searchWordCondition);
             }
             $whereCondition->add($fieldCondition);
         }
