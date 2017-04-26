@@ -356,7 +356,7 @@ class ORMListSource extends AbstractListSource
         foreach (explode(self::SEARCH_TERM_SEPARATOR, $searchValueFull) as $searchValue) {
             $fieldCondition = $qb->expr()->orX();
             foreach ($this->getSearchFieldsMappings() as $fieldName => $fieldData) {
-                $searchWords = $parts = preg_split('/\s+/', $searchValue);
+                $searchWords = preg_split('/\s+/', $searchValue);
                 $searchWordCondition = $qb->expr()->andX();
                 foreach ($searchWords as $searchWord) {
                     $field = sprintf('%s.%s', $this->rootEntityAlias, $fieldName);

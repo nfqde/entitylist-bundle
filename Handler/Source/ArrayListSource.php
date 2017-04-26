@@ -118,7 +118,7 @@ class ArrayListSource extends AbstractListSource
                 foreach (explode(self::SEARCH_TERM_SEPARATOR, $searchValueFull) as $searchTerm) {
                     $fieldMatch = false;
                     foreach ($this->getSearchFieldsMappings() as $fieldName => $fieldData) {
-                        $searchWords = $parts = preg_split('/\s+/', $searchTerm);
+                        $searchWords = preg_split('/\s+/', $searchTerm);
                         $wordMatch = false;
                         foreach ($searchWords as $searchWord) {
                             if (strpos($fieldName, '.') !== false) {
