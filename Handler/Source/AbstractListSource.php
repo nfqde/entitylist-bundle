@@ -312,7 +312,7 @@ abstract class AbstractListSource implements ListSourceInterface
         }
 
         if ($filterMetadata['type'] == 'boolean') {
-            return boolval($value);
+            return filter_var($value, FILTER_VALIDATE_BOOLEAN);
         }
 
         return strtolower($value);
