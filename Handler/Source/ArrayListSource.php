@@ -3,6 +3,7 @@
 namespace Nfq\Bundle\EntityListBundle\Handler\Source;
 
 use Nfq\Bundle\EntityListBundle\Mapping\Metadata\ListMetadata;
+use Nfq\Bundle\EntityListBundle\ValueObject\Filter;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -85,7 +86,36 @@ class ArrayListSource extends AbstractListSource
      */
     protected function addFilterConditions(array &$data, Request $request)
     {
-        // TODO: not implemented yet.
+        $filters = $this->extractFilters($request);
+        $filterFieldMappings = $this->getFilterFieldsMappings();
+
+        if (!$filterFieldMappings) {
+            throw new \InvalidArgumentException('This list has no filter feature');
+        }
+
+        foreach ($filters as $filter) {
+            $this->validateFilter($filter, $filterFieldMappings);
+        }
+
+        $data = array_filter(
+            $data,
+            function ($row) use ($filters) {
+                foreach ($filters as $filter) {
+                    switch ($filter->getOperator()) {
+                        case Filter::OPERATOR_EQ:
+                            if ($row[$filter->getField()] !== $filter->getValue()['from']) {
+                                return false;
+                            }
+                            break;
+                        default:
+                            throw new \InvalidArgumentException(
+                                sprintf('Filter operator "%s" not implemented yet', $filter->getOperator())
+                            );
+                    }
+                }
+                return true;
+            }
+        );
     }
 
     /**
