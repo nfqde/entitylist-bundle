@@ -3,7 +3,6 @@
 namespace Nfq\Bundle\EntityListBundle\Handler\Source;
 
 use Elastica\Query;
-use Elastica\Filter as ElasticFilter;
 use Elastica\Type as ElasticaType;
 use FOS\ElasticaBundle\Finder\PaginatedFinderInterface;
 use Knp\Component\Pager\Pagination\SlidingPagination;
@@ -180,7 +179,6 @@ class ElasticListSource extends AbstractListSource
     protected function addSearchAndFiltersConditions(Query $query, Request $request)
     {
         $filtersData = $request->query->get($this->listHandlerConfig['filters_param_name'], []);
-
         $fullFilter = new Query\BoolQuery();
         $globalSearchFilter = $this->getGlobalSearchQueries($filtersData);
 
@@ -190,13 +188,15 @@ class ElasticListSource extends AbstractListSource
             $containsFilters[] = $globalSearchFilter;
         }
         $notContainsFilters = [];
-        $fieldsFilter = new ElasticFilter\BoolFilter();
+        $fieldsFilter = new Query\BoolQuery();
 
         $filters = $this->extractFilters($request);
         if ($filters) {
             foreach ($filters as $filter) {
                 $this->addFieldFilter($fieldsFilter, $filter, $containsFilters, $notContainsFilters);
             }
+
+            $fullFilter->addFilter($fieldsFilter);
         }
 
         if ($containsFilters) {
@@ -208,10 +208,7 @@ class ElasticListSource extends AbstractListSource
             $fullFilter->addMustNot($notContainsFilters);
         }
 
-        if ($fieldsFilter->toArray()) {
-            $filteredQuery = new Query\Filtered($fullFilter, $fieldsFilter);
-            $query->setQuery($filteredQuery);
-        } else if ($fullFilter->getParams()) {
+        if ($fullFilter->getParams()) {
             $query->setQuery($fullFilter);
         }
     }
@@ -221,13 +218,13 @@ class ElasticListSource extends AbstractListSource
      *
      * This function also adds filters to contains and notContains filter arrays which are passed by reference.
      *
-     * @param ElasticFilter\BoolFilter $fieldsFilter
-     * @param Filter                   $filter
-     * @param array                    $containsFilters
-     * @param array                    $notContainsFilters
+     * @param Query\BoolQuery $fieldsFilter
+     * @param Filter          $filter
+     * @param array           $containsFilters
+     * @param array           $notContainsFilters
      */
     protected function addFieldFilter(
-        ElasticFilter\BoolFilter $fieldsFilter,
+        Query\BoolQuery $fieldsFilter,
         Filter $filter,
         array &$containsFilters,
         array &$notContainsFilters
@@ -276,13 +273,13 @@ class ElasticListSource extends AbstractListSource
      * @param string $fieldName
      * @param array  $filterMetadata
      *
-     * @return ElasticFilter\AbstractFilter
+     * @return Query\AbstractQuery
      */
     protected function getContainsFilter($value, $fieldName, $filterMetadata)
     {
         if ($filterMetadata['target'] == EntityList::FIELD_TARGET_RELATION) {
             $path = explode('.', $fieldName)[0];
-            $nestedFilter = new ElasticFilter\Nested();
+            $nestedFilter = new Query\Nested();
             $nestedFilter->setPath($path);
             $nestedFilter->setQuery($this->createMultiMatchQuery([$fieldName], $value));
 
@@ -299,15 +296,15 @@ class ElasticListSource extends AbstractListSource
      * @param string $fieldName
      * @param array  $filterMetadata
      *
-     * @return ElasticFilter\AbstractFilter
+     * @return Query\AbstractQuery
      */
     protected function getEqualFilter($value, $fieldName, $filterMetadata)
     {
         if ($filterMetadata['target'] == EntityList::FIELD_TARGET_RELATION) {
             $path = explode('.', $fieldName)[0];
-            $nestedFilter = new ElasticFilter\Nested();
+            $nestedFilter = new Query\Nested();
             $nestedFilter->setPath($path);
-            $nestedFilter->setFilter($this->getEqualFilterByType($value, $fieldName, $filterMetadata));
+            $nestedFilter->setQuery($this->getEqualFilterByType($value, $fieldName, $filterMetadata));
 
             return $nestedFilter;
         }
@@ -324,29 +321,31 @@ class ElasticListSource extends AbstractListSource
      * @param string $fieldName
      * @param array  $filterMetadata
      *
-     * @return ElasticFilter\AbstractFilter
+     * @return Query\AbstractQuery
      */
     protected function getNotEqualFilter($value, $fieldName, $filterMetadata)
     {
-        $termFilter = new ElasticFilter\Term([sprintf('%s.raw', $fieldName) => $value]);
-        $missingFieldFilter = new ElasticFilter\Missing(sprintf('%s.raw', $fieldName));
-        $mustNot = new ElasticFilter\BoolFilter();
+        $termFilter = new Query\Term([sprintf('%s.raw', $fieldName) => $value]);
+        $existsFieldFilter = new Query\Exists(sprintf('%s.raw', $fieldName));
+        $notExistsFilter = new Query\BoolQuery();
+        $notExistsFilter->addMustNot($existsFieldFilter);
+        $mustNot = new Query\BoolQuery();
         $mustNot->addMustNot($termFilter);
-        $missingOrNotEqual = new ElasticFilter\BoolFilter();
-        $missingOrNotEqual->addShould([$missingFieldFilter, $mustNot]);
+        $missingOrNotEqual = new Query\BoolQuery();
+        $missingOrNotEqual->addShould([$notExistsFilter, $mustNot]);
 
         // Missing nested or missing field of nested or field of nested not equal.
         if ($filterMetadata['target'] == EntityList::FIELD_TARGET_RELATION) {
             $path = explode('.', $fieldName)[0];
-            $nestedFieldFilter = new ElasticFilter\Nested();
+            $nestedFieldFilter = new Query\Nested();
             $nestedFieldFilter->setPath($path);
 
-            $missingNestedFieldFilter = new ElasticFilter\BoolNot(
-                clone $nestedFieldFilter->setFilter(new ElasticFilter\MatchAll())
-            );
-            $rootFilter = new ElasticFilter\BoolFilter();
+            $missingNestedFieldFilter = new Query\BoolQuery();
+            $missingNestedFieldFilter->addMustNot(clone $nestedFieldFilter->setQuery(new Query\MatchAll()));
+
+            $rootFilter = new Query\BoolQuery();
             $rootFilter->addShould(
-                [$missingNestedFieldFilter, clone $nestedFieldFilter->setFilter($missingOrNotEqual)]
+                [$missingNestedFieldFilter, clone $nestedFieldFilter->setQuery($missingOrNotEqual)]
             );
 
             return $rootFilter;
@@ -363,16 +362,16 @@ class ElasticListSource extends AbstractListSource
      * @param string $fieldName
      * @param array  $filterMetadata
      *
-     * @return ElasticFilter\AbstractFilter
+     * @return Query\AbstractQuery
      */
     protected function getRangeFilter($value, $operator, $fieldName, $filterMetadata)
     {
-        $rangeFilter = new ElasticFilter\Range(sprintf('%s.raw', $fieldName), [$operator => $value]);
+        $rangeFilter = new Query\Range(sprintf('%s.raw', $fieldName), [$operator => $value]);
         if ($filterMetadata['target'] == EntityList::FIELD_TARGET_RELATION) {
             $path = explode('.', $fieldName)[0];
-            $nestedFilter = new ElasticFilter\Nested();
+            $nestedFilter = new Query\Nested();
             $nestedFilter->setPath($path);
-            $nestedFilter->setFilter($rangeFilter);
+            $nestedFilter->setQuery($rangeFilter);
 
             return $nestedFilter;
         }
@@ -387,17 +386,20 @@ class ElasticListSource extends AbstractListSource
      * @param string $fieldName
      * @param array  $filterMetadata
      *
-     * @return ElasticFilter\AbstractFilter
+     * @return Query\AbstractQuery
      */
     protected function getEqualFilterByType($value, $fieldName, $filterMetadata)
     {
-        $termFilter = new ElasticFilter\Term([sprintf('%s.raw', $fieldName) => $value]);
+        $termFilter = new Query\Term([sprintf('%s.raw', $fieldName) => $value]);
         switch ($filterMetadata['type']) {
             case 'boolean':
                 if (!$value) {
                     // Null or false.
-                    $filter = new ElasticFilter\BoolFilter();
-                    $filter->addShould([new ElasticFilter\Missing(sprintf('%s.raw', $fieldName)), $termFilter]);
+                    $filter = new Query\BoolQuery();
+                    $existsFieldFilter = new Query\Exists(sprintf('%s.raw', $fieldName));
+                    $notExistsFilter = new Query\BoolQuery();
+                    $notExistsFilter->addMustNot($existsFieldFilter);
+                    $filter->addShould([$notExistsFilter, $termFilter]);
 
                     return $filter;
                 }
@@ -435,7 +437,7 @@ class ElasticListSource extends AbstractListSource
      *
      * @param array $filtersData
      *
-     * @return Query\Bool|null
+     * @return Query\BoolQuery|null
      *
      * @throws \InvalidArgumentException
      */
