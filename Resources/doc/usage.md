@@ -133,8 +133,7 @@ The easiest way to create list handle is using list handler factory (**requires 
     # ...
     products.entity_list_handler:
         class: Nfq\EntityListBundle\Handler\EntityListHandler
-        factory_service: nfq_entity_list.handler_factory
-        factory_method: getEntityListHandler
+        factory: 'nfq.entity_list.handler.factory:getEntityListHandler'
         arguments:
             - "@products_repository"
 
